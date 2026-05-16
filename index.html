@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI问答 + 睿声实时语音（60秒超时+文档参数）</title>
+    <title>AI问答 + 睿声实时语音（v1域名+60秒超时）</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">AI问答 + 我的专属克隆声音（60秒超时）</h1>
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">AI问答 + 我的专属克隆声音（v1域名）</h1>
         
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8 text-center">
             <img src="https://picsum.photos/200/200" alt="数字人" class="mx-auto rounded-lg max-h-96 mb-4">
-            <p class="text-gray-600">硅基流动AI + 睿声同步实时语音（60秒超时+文档参数）</p>
+            <p class="text-gray-600">硅基流动AI + 睿声v1.wusound.cn接口（60秒超时）</p>
         </div>
         
         <div id="chat-container" class="bg-white rounded-lg shadow-lg p-6 mb-8 h-96 overflow-y-auto">
             <div class="mb-4">
                 <div class="bg-blue-100 rounded-lg p-3 inline-block">
-                    按F12打开Console查看详细日志（60秒超时）～
+                    按F12打开Console查看v1域名调用日志～
                 </div>
             </div>
         </div>
@@ -27,23 +27,21 @@
             <input type="text" id="question-input" placeholder="请输入你的问题..." 
                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             <button id="send-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                发送（60秒超时）
+                发送（v1域名）
             </button>
         </div>
     </div>
 
     <script>
-        // ===================== 核心配置（适配文档+60秒超时） ======================
+        // ===================== 核心配置（修正为v1.wusound.cn） ======================
         const CONFIG = {
-            // 睿声配置（严格对照文档示例）
             reecho: {
-                baseUrl: "https://dev.wusound.cn",       // 文档根域名
-                realtimeTtsApi: "/v1/tts/synthesize",    // 同步实时语音接口
-                apiKey: "sk-12ebe65a69fbdde4e0387a2133661b2e", // 你的API Key
-                voiceId: "ef16fe1a-abfe-4e5f-9a9a-d6ac07cea2e2", // 你的克隆声音ID
-                timeout: 60000 // 超时时间改为60秒（60000毫秒）
+                baseUrl: "https://v1.wusound.cn",        // 修正：使用v1.wusound.cn域名
+                realtimeTtsApi: "/v1/tts/synthesize",    // 接口路径保持不变
+                apiKey: "sk-12ebe65a69fbdde4e0387a2133661b2e",
+                voiceId: "ef16fe1a-abfe-4e5f-9a9a-d6ac07cea2e2",
+                timeout: 60000 // 60秒超时
             },
-            // 硅基流动配置
             siliconflow: {
                 url: "https://api.siliconflow.cn/v1/chat/completions",
                 key: "sk-vsjboqquowgbxbrkqoizrrptqwpizopzfhxtqijfdtkjogft",
@@ -59,7 +57,7 @@
         let activeAudio = null;
         let chatHistory = [{ role: "system", content: "回答简洁，纯中文，无特殊符号，不超过80字。" }];
 
-        // -------------------------- 彩色日志工具 --------------------------
+        // 彩色日志工具
         function log(type, module, message, data = null) {
             const colors = {
                 info: "#2196F3",
@@ -76,7 +74,7 @@
             );
         }
 
-        // -------------------------- 1. 硅基流动AI（保留原有逻辑） --------------------------
+        // 1. 硅基流动AI（无修改）
         async function getAiAnswer(question) {
             log("info", "AI", "开始调用硅基流动AI", { question });
             chatHistory.push({ role: "user", content: question });
@@ -128,9 +126,8 @@
             }
         }
 
-        // -------------------------- 2. 睿声实时语音（修正参数+60秒超时） --------------------------
+        // 2. 睿声实时语音（仅修改域名，其余不变）
         async function playRealtimeVoice(text) {
-            // 文本预处理
             const cleanText = text
                 .replace(/[^\u4e00-\u9fa5，。！？、]/g, "")
                 .substring(0, 500);
@@ -138,53 +135,48 @@
             log("info", "VOICE", "语音合成文本预处理完成", { rawText: text, cleanText });
             
             if (!cleanText) {
-                log("warn", "VOICE", "预处理后文本为空，无法合成语音");
+                log("warn", "VOICE", "预处理后文本为空");
                 addMessage("❌ 文本为空/含非法字符，无法合成声音", "assistant");
                 return false;
             }
 
-            // 停止上一次音频
             if (activeAudio) {
                 activeAudio.pause();
-                log("info", "VOICE", "停止上一次音频播放");
                 activeAudio = null;
             }
 
             try {
-                addMessage("🔊 正在调用睿声实时语音（60秒超时）...", "assistant");
+                addMessage("🔊 正在调用睿声v1接口（60秒超时）...", "assistant");
                 const fullApiUrl = CONFIG.reecho.baseUrl + CONFIG.reecho.realtimeTtsApi;
-                log("info", "VOICE", "睿声接口地址", { fullApiUrl });
+                log("info", "VOICE", "睿声最终接口地址", { fullApiUrl });
 
-                // 构造请求参数（严格对照文档示例！）
                 const voiceRequestData = {
-                    voiceId: CONFIG.reecho.voiceId, // 修正：驼峰voiceId（文档要求）
-                    text: cleanText,                // 必传文本
-                    promptId: "default",            // 文档默认值
-                    preset: "balance",              // 文档默认值：均衡风格
-                    break_clone: true,              // 文档默认值：启用情感风格
-                    language: "auto",               // 文档默认值：自动识别语言
-                    vivid: false,                   // 文档示例值
-                    emo_switch: [0,0,0,0,0],        // 文档示例值
-                    speechRate: 1,                  // 文档示例值：语速1.0
-                    flash: false,                   // 文档示例值
-                    stream: false,                  // 文档示例值：非流式
-                    seed: -1,                       // 文档示例值
-                    srt: false                      // 文档示例值
+                    voiceId: CONFIG.reecho.voiceId,
+                    text: cleanText,
+                    promptId: "default",
+                    preset: "balance",
+                    break_clone: true,
+                    language: "auto",
+                    vivid: false,
+                    emo_switch: [0,0,0,0,0],
+                    speechRate: 1,
+                    flash: false,
+                    stream: false,
+                    seed: -1,
+                    srt: false
                 };
-                log("info", "VOICE", "睿声请求参数（严格对照文档）", voiceRequestData);
+                log("info", "VOICE", "睿声请求参数", voiceRequestData);
 
-                // 60秒超时控制器
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => {
                     controller.abort();
-                    log("error", "VOICE", "睿声请求超时（已等待60秒）");
+                    log("error", "VOICE", "睿声请求超时（60秒）");
                 }, CONFIG.reecho.timeout);
 
-                // 调用睿声接口
                 const res = await fetch(fullApiUrl, {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${CONFIG.reecho.apiKey}`, // 文档鉴权方式
+                        "Authorization": `Bearer ${CONFIG.reecho.apiKey}`,
                         "Content-Type": "application/json",
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                     },
@@ -197,31 +189,25 @@
                 clearTimeout(timeoutId);
                 log("info", "VOICE", `睿声接口响应状态码`, res.status);
 
-                // 读取原始响应
                 const rawResponse = await res.text();
-                log("info", "VOICE", "睿声接口原始响应", rawResponse);
+                log("info", "VOICE", "睿声原始响应", rawResponse);
 
                 if (!res.ok) {
-                    log("error", "VOICE", `睿声接口请求失败`, { status: res.status, rawResponse });
+                    log("error", "VOICE", `睿声接口失败`, { status: res.status, rawResponse });
                     throw new Error(`睿声接口错误（状态码：${res.status}）`);
                 }
 
-                // 解析响应
                 let voiceResponse;
                 try {
                     voiceResponse = JSON.parse(rawResponse);
-                    log("info", "VOICE", "睿声响应JSON解析完成", voiceResponse);
+                    log("info", "VOICE", "睿声响应解析完成", voiceResponse);
                 } catch (parseErr) {
                     log("error", "VOICE", "睿声响应解析失败", { parseErr, rawResponse });
                     throw new Error("睿声返回数据格式错误");
                 }
 
-                // 校验响应
                 if (voiceResponse.code !== 0) {
-                    log("error", "VOICE", "睿声合成失败", {
-                        code: voiceResponse.code,
-                        message: voiceResponse.message || "无错误信息"
-                    });
+                    log("error", "VOICE", "睿声合成失败", { code: voiceResponse.code, message: voiceResponse.message });
                     throw new Error(`睿声错误（code=${voiceResponse.code}）：${voiceResponse.message}`);
                 }
 
@@ -229,12 +215,6 @@
                     log("error", "VOICE", "睿声缺失音频链接", voiceResponse.data);
                     throw new Error("睿声未返回音频链接");
                 }
-
-                // 播放音频
-                log("success", "VOICE", "睿声合成成功，开始播放", {
-                    audioUrl: voiceResponse.data.audio_url,
-                    duration: voiceResponse.data.duration || "未知"
-                });
 
                 activeAudio = new Audio(voiceResponse.data.audio_url);
                 activeAudio.crossOrigin = "anonymous";
@@ -246,7 +226,7 @@
                 activeAudio.onended = () => log("info", "VOICE", "音频播放完成");
 
                 await activeAudio.play();
-                addMessage("✅ 睿声实时语音播放成功！", "assistant");
+                addMessage("✅ 睿声v1接口语音播放成功！", "assistant");
                 return true;
 
             } catch (err) {
@@ -254,14 +234,15 @@
                 log("error", "VOICE", "睿声调用失败", { error: errorMsg, stack: err.stack });
                 
                 let tip = `❌ 语音调用失败：${errorMsg}`;
-                if (errorMsg.includes("404")) tip += "（检查voiceId/接口地址）";
+                if (errorMsg.includes("404")) tip += "（检查voiceId/接口路径）";
                 if (errorMsg.includes("401")) tip += "（检查API Key）";
+                if (errorMsg.includes("CORS")) tip += "（需配置跨域白名单/后端代理）";
                 addMessage(tip, "assistant");
                 return false;
             }
         }
 
-        // -------------------------- 3. 主流程 --------------------------
+        // 3. 主流程（无修改）
         async function sendQuestion() {
             const question = questionInput.value.trim();
             if (!question) {
@@ -271,7 +252,7 @@
 
             questionInput.value = "";
             sendBtn.disabled = true;
-            sendBtn.textContent = "处理中（60秒超时）...";
+            sendBtn.textContent = "处理中...";
             addMessage(question, "user");
             
             log("info", "MAIN", "开始处理用户请求", { question });
@@ -285,12 +266,12 @@
                 addMessage(err.message, "assistant");
             } finally {
                 sendBtn.disabled = false;
-                sendBtn.textContent = "发送（60秒超时）";
-                log("info", "MAIN", "请求处理完成，恢复按钮状态");
+                sendBtn.textContent = "发送（v1域名）";
+                log("info", "MAIN", "请求处理完成");
             }
         }
 
-        // -------------------------- 辅助函数 --------------------------
+        // 辅助函数
         function addMessage(text, role) {
             const msgDiv = document.createElement("div");
             msgDiv.className = `mb-4 ${role === "user" ? "text-right" : "text-left"}`;
@@ -304,8 +285,8 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // -------------------------- 初始化 --------------------------
-        log("success", "INIT", "页面初始化完成（60秒超时）", CONFIG);
+        // 初始化
+        log("success", "INIT", "页面初始化完成（v1.wusound.cn）", CONFIG);
         sendBtn.addEventListener("click", sendQuestion);
         questionInput.addEventListener("keypress", (e) => {
             if (e.key === "Enter") sendQuestion();
