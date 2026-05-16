@@ -3,20 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的数字人助手-1</title>
+    <title>我的数字人助手</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
         <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">我的数字人助手</h1>
         
-        <!-- 数字人展示区（保留你的原版样式） -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8 text-center">
             <img id="avatar" src="https://ts1.tc.mm.bing.net/th/id/OIP-C.MboIhEoeGnd8LNGy7pPWgHaHf?rs=1&pid=ImgDetMain&o=7&rm=3" alt="数字人" class="mx-auto rounded-lg max-h-96 mb-4">
             <p class="text-gray-600">你可以向我提问，我会用我的声音为你解答！</p>
         </div>
         
-        <!-- 聊天区域 -->
         <div id="chat-container" class="bg-white rounded-lg shadow-lg p-6 mb-8 h-96 overflow-y-auto">
             <div class="mb-4">
                 <div class="bg-blue-100 rounded-lg p-3 inline-block">
@@ -25,7 +23,6 @@
             </div>
         </div>
         
-        <!-- 输入区 -->
         <div class="flex gap-4">
             <input type="text" id="question-input" placeholder="请输入你的问题..." 
                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -36,16 +33,16 @@
     </div>
 
     <script>
-        // ===================== 已填好你的配置 ======================
+        // ===================== 修正后的配置（核心！） ======================
         // 1. 睿声语音配置（你的信息）
         const REECHO_API_KEY = "sk-12ebe65a69fbdde4e0387a2133661b2e";
         const REECHO_VOICE_ID = "ef16fe1a-abfe-4e5f-9a9a-d6ac07cea2e2";
         
-        // 2. 硅基流动AI配置（从你的截图复制）
+        // 2. 硅基流动AI配置（替换为你正确的密钥！）
         const SILICONFLOW_CONFIG = {
-            url: "https://api.siliconflow.cn/v1/chat/completions", // 完整接口地址
-            key: "sk-vsjboquowgbxbrkqoizrrptqwpizopzfhxtqjfdtkjogft", // 你的API密钥
-            model: "Qwen/Qwen3-8B" // 推荐用千问3-8B模型（截图里的可用模型）
+            url: "https://api.siliconflow.cn/v1/chat/completions",
+            key: "sk-vsjboqquowgbxbrkqoizrrptqwpizopzfhxtqijfdtkjogft", // 正确密钥
+            model: "Qwen/Qwen3-8B"
         };
         // ===============================================================
 
@@ -53,38 +50,42 @@
         const questionInput = document.getElementById('question-input');
         const sendBtn = document.getElementById('send-btn');
         let currentAudio = null;
-        // 多轮对话历史
         let chatHistory = [
             { role: "system", content: "你是一个友好的智能助手，回答简洁易懂，语气亲切，只用中文回答，不要多余内容。" }
         ];
 
-        // 核心：调用硅基流动AI API获取回答
+        // 调用硅基流动AI API（修复401）
         async function callSiliconflowAPI(question) {
             chatHistory.push({ role: "user", content: question });
             
             try {
-                // 跨域代理 + 硅基流动接口
-                const proxyUrl = "https://corsproxy.io/?";
-                const fullApiUrl = proxyUrl + encodeURIComponent(SILICONFLOW_CONFIG.url);
-
-                const response = await fetch(fullApiUrl, {
+                const response = await fetch(SILICONFLOW_CONFIG.url, {
                     method: "POST",
                     headers: {
                         "Authorization": `Bearer ${SILICONFLOW_CONFIG.key}`,
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                     },
                     body: JSON.stringify({
                         model: SILICONFLOW_CONFIG.model,
                         messages: chatHistory,
-                        temperature: 0.7, // 回答随机性
-                        max_tokens: 1000,  // 最大回答长度
-                        stream: false       // 非流式输出
-                    })
+                        temperature: 0.7,
+                        max_tokens: 1000,
+                        stream: false
+                    }),
+                    credentials: "omit"
                 });
 
+                // 精准错误提示
+                if (response.status === 401) {
+                    throw new Error("🔑 密钥仍无效！请确认是否复制完整，或重新生成硅基流动密钥");
+                }
+                if (response.status === 403) {
+                    throw new Error("🚫 账号无额度/权限！请检查硅基流动账号余额");
+                }
                 if (!response.ok) {
-                    throw new Error(`AI接口调用失败：${response.status} ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`接口错误：${response.status} - ${errorText}`);
                 }
 
                 const data = await response.json();
@@ -93,7 +94,7 @@
                 return answer;
             } catch (error) {
                 console.error("硅基流动API错误：", error);
-                throw new Error("AI回答获取失败，请检查API密钥或网络～");
+                throw new Error(error.message);
             }
         }
 
@@ -132,7 +133,7 @@
                 }
             } catch (error) {
                 console.error("睿声API错误：", error);
-                // 降级：浏览器自带语音朗读
+                // 降级：浏览器语音
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = "zh-CN";
                 utterance.rate = 1.0;
@@ -148,18 +149,14 @@
                 return;
             }
 
-            // 显示用户问题
             addMessage(question, "user");
             questionInput.value = "";
             sendBtn.disabled = true;
             sendBtn.textContent = "思考中...";
 
             try {
-                // 1. 调用硅基流动AI获取回答
                 const answer = await callSiliconflowAPI(question);
-                // 2. 显示AI回答
                 addMessage(answer, "assistant");
-                // 3. 用你的克隆声音朗读
                 await playReechoVoice(answer);
             } catch (error) {
                 addMessage(error.message, "assistant");
@@ -180,7 +177,6 @@
             
             messageDiv.appendChild(bubbleDiv);
             chatContainer.appendChild(messageDiv);
-            // 自动滚动到最新消息
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
