@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
-<html lang="zh-C">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +10,7 @@
     <div class="container mx-auto px-4 py-8 max-w-4xl">
         <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">我的数字人助手</h1>
         
-        <!-- 你的原版数字人界面 -->
+        <!-- 数字人展示区（保留你的原版样式） -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8 text-center">
             <img id="avatar" src="https://ts1.tc.mm.bing.net/th/id/OIP-C.MboIhEoeGnd8LNGy7pPWgHaHf?rs=1&pid=ImgDetMain&o=7&rm=3" alt="数字人" class="mx-auto rounded-lg max-h-96 mb-4">
             <p class="text-gray-600">你可以向我提问，我会用我的声音为你解答！</p>
@@ -21,12 +20,12 @@
         <div id="chat-container" class="bg-white rounded-lg shadow-lg p-6 mb-8 h-96 overflow-y-auto">
             <div class="mb-4">
                 <div class="bg-blue-100 rounded-lg p-3 inline-block">
-                    你好！我是你的专属数字人助手~
+                    你好！我是你的专属数字人助手，有任何问题都可以问我～
                 </div>
             </div>
         </div>
         
-        <!-- 输入框 -->
+        <!-- 输入区 -->
         <div class="flex gap-4">
             <input type="text" id="question-input" placeholder="请输入你的问题..." 
                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -37,48 +36,68 @@
     </div>
 
     <script>
-        // 你的睿声密钥 + 角色ID（已填好）
-        const API_KEY = "sk-12ebe65a69fbdde4e0387a2133661b2e";
-        const VOICE_ID = "ef16fe1a-abfe-4e5f-9a9a-d6ac07cea2e2";
+        // ===================== 已填好你的配置 ======================
+        // 1. 睿声语音配置（你的信息）
+        const REECHO_API_KEY = "sk-12ebe65a69fbdde4e0387a2133661b2e";
+        const REECHO_VOICE_ID = "ef16fe1a-abfe-4e5f-9a9a-d6ac07cea2e2";
+        
+        // 2. 硅基流动AI配置（从你的截图复制）
+        const SILICONFLOW_CONFIG = {
+            url: "https://api.siliconflow.cn/v1/chat/completions", // 完整接口地址
+            key: "sk-vsjboquowgbxbrkqoizrrptqwpizopzfhxtqjfdtkjogft", // 你的API密钥
+            model: "Qwen/Qwen3-8B" // 推荐用千问3-8B模型（截图里的可用模型）
+        };
+        // ===============================================================
 
         const chatContainer = document.getElementById('chat-container');
         const questionInput = document.getElementById('question-input');
         const sendBtn = document.getElementById('send-btn');
         let currentAudio = null;
+        // 多轮对话历史
+        let chatHistory = [
+            { role: "system", content: "你是一个友好的智能助手，回答简洁易懂，语气亲切，只用中文回答，不要多余内容。" }
+        ];
 
-        // 发送问题
-        async function sendQuestion() {
-            const question = questionInput.value.trim();
-            if (!question) return;
-
-            addMessage(question, 'user');
-            questionInput.value = '';
-            sendBtn.disabled = true;
-
+        // 核心：调用硅基流动AI API获取回答
+        async function callSiliconflowAPI(question) {
+            chatHistory.push({ role: "user", content: question });
+            
             try {
-                const answer = getLocalAnswer(question);
-                addMessage(answer, 'assistant');
-                // 在线部署后，调用API无CORS报错
-                await playReechoVoice(answer);
+                // 跨域代理 + 硅基流动接口
+                const proxyUrl = "https://corsproxy.io/?";
+                const fullApiUrl = proxyUrl + encodeURIComponent(SILICONFLOW_CONFIG.url);
+
+                const response = await fetch(fullApiUrl, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${SILICONFLOW_CONFIG.key}`,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: SILICONFLOW_CONFIG.model,
+                        messages: chatHistory,
+                        temperature: 0.7, // 回答随机性
+                        max_tokens: 1000,  // 最大回答长度
+                        stream: false       // 非流式输出
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`AI接口调用失败：${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const answer = data.choices[0].message.content.trim();
+                chatHistory.push({ role: "assistant", content: answer });
+                return answer;
             } catch (error) {
-                addMessage('抱歉，我暂时无法回答~', 'assistant');
-                console.error(error);
-            } finally {
-                sendBtn.disabled = false;
+                console.error("硅基流动API错误：", error);
+                throw new Error("AI回答获取失败，请检查API密钥或网络～");
             }
         }
 
-        // AI问答库
-        function getLocalAnswer(question) {
-            const q = question.toLowerCase();
-            if (q.includes('你好')) return '你好呀！很高兴为你服务！';
-            if (q.includes('名字')) return '我是你的专属数字人助手！';
-            if (q.includes('做什么') || q.includes('功能')) return '我可以回答你的问题，陪你聊天，用我的声音为你朗读答案！';
-            if (q.includes('谢谢')) return '不客气，这是我应该做的！';
-            return '我正在学习更多知识，你可以问我日常问题哦！';
-        }
-
-        // 调用睿声API（在线部署后完美运行）
+        // 调用睿声API播放你的克隆声音
         async function playReechoVoice(text) {
             if (currentAudio) {
                 currentAudio.pause();
@@ -86,41 +105,90 @@
             }
 
             try {
-                const res = await fetch("https://v1.wusound.cn/api/tts/simple-generate", {
+                const proxyUrl = "https://corsproxy.io/?";
+                const reechoApiUrl = proxyUrl + encodeURIComponent("https://v1.wusound.cn/api/tts/simple-generate");
+
+                const response = await fetch(reechoApiUrl, {
                     method: "POST",
                     headers: {
-                        "Authorization": "Bearer " + API_KEY,
+                        "Authorization": `Bearer ${REECHO_API_KEY}`,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ voiceId: VOICE_ID, text: text, speed: 1.0 })
+                    body: JSON.stringify({
+                        voiceId: REECHO_VOICE_ID,
+                        text: text,
+                        speed: 1.0,
+                        pitch: 1.0
+                    })
                 });
 
-                const data = await res.json();
-                if (data.success) {
+                const data = await response.json();
+                if (data.success && data.data?.audioUrl) {
                     currentAudio = new Audio(data.data.audioUrl);
+                    currentAudio.crossOrigin = "anonymous";
                     await currentAudio.play();
+                } else {
+                    throw new Error(data.message || "睿声语音生成失败");
                 }
-            } catch (err) {
-                console.error("语音播放失败：", err);
+            } catch (error) {
+                console.error("睿声API错误：", error);
+                // 降级：浏览器自带语音朗读
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "zh-CN";
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
             }
         }
 
-        // 聊天消息
+        // 发送问题主流程
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) {
+                alert("请输入你的问题！");
+                return;
+            }
+
+            // 显示用户问题
+            addMessage(question, "user");
+            questionInput.value = "";
+            sendBtn.disabled = true;
+            sendBtn.textContent = "思考中...";
+
+            try {
+                // 1. 调用硅基流动AI获取回答
+                const answer = await callSiliconflowAPI(question);
+                // 2. 显示AI回答
+                addMessage(answer, "assistant");
+                // 3. 用你的克隆声音朗读
+                await playReechoVoice(answer);
+            } catch (error) {
+                addMessage(error.message, "assistant");
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "发送";
+            }
+        }
+
+        // 添加消息到聊天框
         function addMessage(text, role) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `mb-4 ${role === 'user' ? 'text-right' : 'text-left'}`;
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `mb-4 ${role === "user" ? "text-right" : "text-left"}`;
             
-            const bubbleDiv = document.createElement('div');
-            bubbleDiv.className = `inline-block p-3 rounded-lg ${role === 'user' ? 'bg-green-100' : 'bg-blue-100'}`;
+            const bubbleDiv = document.createElement("div");
+            bubbleDiv.className = `inline-block p-3 rounded-lg ${role === "user" ? "bg-green-100" : "bg-blue-100"}`;
             bubbleDiv.textContent = text;
             
             messageDiv.appendChild(bubbleDiv);
             chatContainer.appendChild(messageDiv);
+            // 自动滚动到最新消息
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        sendBtn.addEventListener('click', sendQuestion);
-        questionInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendQuestion());
+        // 绑定事件
+        sendBtn.addEventListener("click", sendQuestion);
+        questionInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendQuestion();
+        });
     </script>
 </body>
 </html>
